@@ -224,10 +224,11 @@ Reserialize:
     reserialize Assets/Prefabs/A.prefab Assets/Prefabs/B.prefab
 
 Profiler:
-  profiler hierarchy             Top-level profiler samples (last frame)
-  profiler hierarchy --parent 5  Drill into item by ID
-  profiler hierarchy --min 0.5   Filter items below 0.5ms
-  profiler hierarchy --sort self Sort by self time
+  profiler hierarchy              Top-level profiler samples (last frame)
+  profiler hierarchy --depth 5    Recursive drill-down (0=unlimited)
+  profiler hierarchy --parent 5   Drill into item by ID
+  profiler hierarchy --min 0.5    Filter items below 0.5ms
+  profiler hierarchy --sort self  Sort by self time
   profiler enable                Start profiler recording
   profiler disable               Stop profiler recording
   profiler status                Show profiler state

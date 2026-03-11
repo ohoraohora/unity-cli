@@ -5,13 +5,8 @@ using UnityEditorInternal;
 
 namespace UnityCliConnector.Tools
 {
-    /// <summary>
-    /// Hierarchical profiler drill-down.
-    /// Each call returns one level of children, keeping response size small.
-    /// Start with no parentId to see top-level items, then drill into any child by its itemId.
-    /// </summary>
     [UnityCliTool(Name = "profiler_hierarchy",
-        Description = "[ReadOnly] Hierarchical profiler drill-down. Returns one level of children at a time.")]
+        Description = "[ReadOnly] Hierarchical profiler drill-down with recursive depth support.")]
     public static class ProfilerHierarchy
     {
         public class Parameters
@@ -31,8 +26,11 @@ namespace UnityCliConnector.Tools
             [ToolParameter("Sort column: 'total', 'self', or 'calls'. Default 'total'.")]
             public string SortBy { get; set; }
 
-            [ToolParameter("Max children to return. Default 30.")]
+            [ToolParameter("Max children per level. Default 30.")]
             public int MaxItems { get; set; }
+
+            [ToolParameter("Recursive depth. 1 = one level (default), 0 = unlimited.")]
+            public int Depth { get; set; }
         }
 
         public static object HandleCommand(JObject parameters)
@@ -56,6 +54,8 @@ namespace UnityCliConnector.Tools
             var maxItems = parameters["max_items"]?.Value<int>()
                 ?? parameters["maxItems"]?.Value<int>() ?? 30;
             if (maxItems <= 0) maxItems = 30;
+            var depth = parameters["depth"]?.Value<int>() ?? 1;
+            if (depth <= 0) depth = 999;
 
             int sortColumn;
             switch (sortBy)
@@ -75,44 +75,11 @@ namespace UnityCliConnector.Tools
 
             int parentId;
             if (parentIdToken == null || parentIdToken.Type == JTokenType.Null)
-            {
                 parentId = frameData.GetRootItemID();
-            }
             else
-            {
                 parentId = parentIdToken.Value<int>();
-            }
 
-            var childIds = new List<int>();
-            frameData.GetItemChildren(parentId, childIds);
-
-            var items = new JArray();
-            int shown = 0;
-            foreach (var childId in childIds)
-            {
-                var totalTime = frameData.GetItemColumnDataAsFloat(childId, HierarchyFrameDataView.columnTotalTime);
-                if (totalTime < minTime) continue;
-
-                if (shown >= maxItems) break;
-                shown++;
-
-                var selfTime = frameData.GetItemColumnDataAsFloat(childId, HierarchyFrameDataView.columnSelfTime);
-                var calls = (int)frameData.GetItemColumnDataAsFloat(childId, HierarchyFrameDataView.columnCalls);
-
-                var childChildIds = new List<int>();
-                frameData.GetItemChildren(childId, childChildIds);
-
-                var item = new JObject
-                {
-                    ["itemId"] = childId,
-                    ["name"] = frameData.GetItemName(childId),
-                    ["totalMs"] = System.Math.Round(totalTime, 3),
-                    ["selfMs"] = System.Math.Round(selfTime, 3),
-                    ["calls"] = calls,
-                    ["childCount"] = childChildIds.Count,
-                };
-                items.Add(item);
-            }
+            var items = BuildChildren(frameData, parentId, minTime, maxItems, depth);
 
             var parentName = parentIdToken != null && parentIdToken.Type != JTokenType.Null
                 ? frameData.GetItemName(parentId)
@@ -124,13 +91,50 @@ namespace UnityCliConnector.Tools
                 ["threadIndex"] = threadIndex,
                 ["parentId"] = parentId,
                 ["parentName"] = parentName,
-                ["childrenCount"] = childIds.Count,
-                ["shownCount"] = shown,
-                ["minTimeFilter"] = minTime,
+                ["depth"] = depth >= 999 ? 0 : depth,
                 ["children"] = items,
             };
 
-            return new SuccessResponse($"{shown} children of '{parentName}' (frame {frameIndex})", result);
+            return new SuccessResponse($"Hierarchy of '{parentName}' (frame {frameIndex})", result);
+        }
+
+        static JArray BuildChildren(HierarchyFrameDataView frameData, int parentId, float minTime, int maxItems, int remainingDepth)
+        {
+            var childIds = new List<int>();
+            frameData.GetItemChildren(parentId, childIds);
+
+            var items = new JArray();
+            int shown = 0;
+            foreach (var childId in childIds)
+            {
+                var totalTime = frameData.GetItemColumnDataAsFloat(childId, HierarchyFrameDataView.columnTotalTime);
+                if (totalTime < minTime) continue;
+                if (shown >= maxItems) break;
+                shown++;
+
+                var selfTime = frameData.GetItemColumnDataAsFloat(childId, HierarchyFrameDataView.columnSelfTime);
+                var calls = (int)frameData.GetItemColumnDataAsFloat(childId, HierarchyFrameDataView.columnCalls);
+
+                var item = new JObject
+                {
+                    ["itemId"] = childId,
+                    ["name"] = frameData.GetItemName(childId),
+                    ["totalMs"] = System.Math.Round(totalTime, 3),
+                    ["selfMs"] = System.Math.Round(selfTime, 3),
+                    ["calls"] = calls,
+                };
+
+                if (remainingDepth > 1)
+                {
+                    var subChildren = BuildChildren(frameData, childId, minTime, maxItems, remainingDepth - 1);
+                    if (subChildren.Count > 0)
+                        item["children"] = subChildren;
+                }
+
+                items.Add(item);
+            }
+
+            return items;
         }
     }
 }

@@ -46,6 +46,11 @@ func profilerCmd(args []string, send sendFn) (*client.CommandResponse, error) {
 				params["max_items"] = n
 			}
 		}
+		if v, ok := flags["depth"]; ok {
+			if n, err := strconv.Atoi(v); err == nil {
+				params["depth"] = n
+			}
+		}
 		return send("profiler_hierarchy", params)
 
 	case "enable":
