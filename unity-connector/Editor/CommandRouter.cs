@@ -53,13 +53,11 @@ namespace UnityCliConnector
 
             if (ToolDiscovery.Tools.TryGetValue(command, out var tool) == false)
             {
-                return new
+                return new ErrorResponse($"Unknown command: {command}", new
                 {
-                    success = false,
-                    error = $"Unknown command: {command}",
                     registered_tools = ToolDiscovery.Tools.Keys.ToArray(),
                     tool_count = ToolDiscovery.Tools.Count,
-                };
+                });
             }
 
             return await InvokeHandler(command, tool, parameters);

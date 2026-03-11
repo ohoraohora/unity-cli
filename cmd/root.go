@@ -75,14 +75,8 @@ func Execute() error {
 		resp, err = consoleCmd(subArgs, send)
 	case "exec":
 		resp, err = execCmd(subArgs, send)
-	case "query":
-		resp, err = queryCmd(subArgs, send)
-	case "game":
-		resp, err = gameCmd(subArgs, send)
 	case "tool":
 		resp, err = toolCmd(subArgs, send)
-	case "diag":
-		resp, err = diagCmd(subArgs, send)
 	case "profiler":
 		resp, err = profilerCmd(subArgs, send)
 	case "menu":
