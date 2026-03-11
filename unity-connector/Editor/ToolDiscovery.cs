@@ -57,7 +57,8 @@ namespace UnityCliConnector
 
         static void TryRegister(Type type)
         {
-            if (type.IsAbstract || type.IsClass == false) return;
+            if (type.IsClass == false) return;
+            if (type.IsAbstract && type.IsSealed == false) return;
 
             string name = null;
             string description = "";
