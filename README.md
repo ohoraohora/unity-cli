@@ -31,7 +31,7 @@ curl -fsSL https://raw.githubusercontent.com/youngwoocho02/unity-cli/master/inst
 ### Windows (PowerShell)
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/youngwoocho02/unity-cli/releases/latest/download/unity-cli-windows-amd64.exe" -OutFile "$env:LOCALAPPDATA\unity-cli.exe"; if($env:Path -notlike "*$env:LOCALAPPDATA*"){[Environment]::SetEnvironmentVariable("Path","$([Environment]::GetEnvironmentVariable('Path','User'));$env:LOCALAPPDATA","User");$env:Path+= ";$env:LOCALAPPDATA"}; unity-cli version
+irm https://raw.githubusercontent.com/youngwoocho02/unity-cli/master/install.ps1 | iex
 ```
 
 ### Other options

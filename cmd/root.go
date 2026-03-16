@@ -470,7 +470,7 @@ CLI Installation:
   curl -fsSL https://raw.githubusercontent.com/youngwoocho02/unity-cli/master/install.sh | sh
 
   # Windows (PowerShell)
-  Invoke-WebRequest -Uri "https://github.com/youngwoocho02/unity-cli/releases/latest/download/unity-cli-windows-amd64.exe" -OutFile "$env:LOCALAPPDATA\unity-cli.exe"
+  irm https://raw.githubusercontent.com/youngwoocho02/unity-cli/master/install.ps1 | iex
 
   # Go install (any platform)
   go install github.com/youngwoocho02/unity-cli@latest
