@@ -98,12 +98,32 @@ func Execute() error {
 	case "reserialize":
 		resp, err = reserializeCmd(subArgs, send)
 	default:
-		// Direct custom tool call
+		// Direct custom tool call — flags become params directly
+		// e.g. `unity-cli system_tree --depth 1 --scope project` → {"depth":1,"scope":"project"}
 		params := map[string]interface{}{}
 		flags := parseSubFlags(subArgs)
 		if raw, ok := flags["params"]; ok {
 			if jsonErr := json.Unmarshal([]byte(raw), &params); jsonErr != nil {
 				return fmt.Errorf("invalid JSON in --params: %w", jsonErr)
+			}
+		}
+		// Merge remaining flags into params (--params takes precedence for conflicts)
+		for k, v := range flags {
+			if k == "params" {
+				continue
+			}
+			if _, exists := params[k]; exists {
+				continue
+			}
+			// Try to parse as int, then bool, then keep as string
+			if n, err := strconv.Atoi(v); err == nil {
+				params[k] = n
+			} else if v == "true" {
+				params[k] = true
+			} else if v == "false" {
+				params[k] = false
+			} else {
+				params[k] = v
 			}
 		}
 		resp, err = send(category, params)
@@ -141,8 +161,13 @@ func printResponse(resp *client.CommandResponse) {
 	if resp.Data != nil && len(resp.Data) > 0 && string(resp.Data) != "null" {
 		var pretty interface{}
 		if json.Unmarshal(resp.Data, &pretty) == nil {
-			b, _ := json.MarshalIndent(pretty, "", "  ")
-			fmt.Println(string(b))
+			// If data is a plain string, print it raw (preserves newlines for tree output etc.)
+			if s, ok := pretty.(string); ok {
+				fmt.Println(s)
+			} else {
+				b, _ := json.MarshalIndent(pretty, "", "  ")
+				fmt.Println(string(b))
+			}
 		} else {
 			fmt.Println(string(resp.Data))
 		}
