@@ -18,7 +18,7 @@ That felt wrong. If I can `curl` a URL, why do I need all that?
 
 So I built the opposite: a single binary that talks directly to Unity via HTTP. No server to run — the Unity package listens automatically. No config to write — it discovers Unity instances on its own. No tool registration — just call by name. No caching, no protocol layers, no ceremony.
 
-The entire CLI is ~800 lines of Go (plus ~300 lines of help text). The Unity-side connector is ~1,700 lines of C#. It's just a thin layer that lets you control Unity from the shell — nothing more. You install the binary, add the Unity package, and it works.
+The entire CLI is ~1,400 lines of Go (plus ~300 lines of help text). The Unity-side connector is ~2,200 lines of C#. It's just a thin layer that lets you control Unity from the shell — nothing more. You install the binary, add the Unity package, and it works.
 
 ## Install
 
@@ -106,7 +106,7 @@ Terminal                              Unity Editor
 ────────                              ────────────
 $ unity-cli editor play --wait
     │
-    ├─ reads ~/.unity-cli/instances.json
+    ├─ scans ~/.unity-cli/instances/*.json
     │  → finds Unity on port 8090
     │
     ├─ POST http://127.0.0.1:8090/command
@@ -131,15 +131,28 @@ $ unity-cli editor play --wait
 
 The Unity Connector:
 1. Opens an HTTP server on `localhost:8090` when the Editor starts
-2. Registers itself in `~/.unity-cli/instances.json` so the CLI knows where to connect
-3. Writes a heartbeat to `~/.unity-cli/status/{port}.json` every 0.5s with the current state
+2. Writes a per-project instance file to `~/.unity-cli/instances/` so the CLI knows where to connect
+3. Updates the instance file every 0.5s with the current state (heartbeat)
 4. Discovers all `[UnityCliTool]` classes via reflection on each request
 5. Routes incoming commands to the matching handler on the main thread
 6. Survives domain reloads (script recompilation)
 
-Before compiling or reloading, the Connector records the state (`compiling`, `reloading`) to the status file. When the main thread freezes, the timestamp stops updating. The CLI detects this and waits for a fresh timestamp before sending commands.
+Before compiling or reloading, the Connector records the state (`compiling`, `reloading`) to the instance file. When the main thread freezes, the timestamp stops updating. The CLI detects this and waits for a fresh timestamp before sending commands.
 
 ## Built-in Commands
+
+| Command | Description |
+|---------|-------------|
+| `editor` | Play/stop/pause/refresh the Unity Editor |
+| `console` | Read, filter, and clear console logs |
+| `exec` | Run arbitrary C# code inside Unity |
+| `test` | Run EditMode/PlayMode tests |
+| `menu` | Execute any Unity menu item by path |
+| `reserialize` | Re-serialize assets through Unity's serializer |
+| `profiler` | Read profiler hierarchy, control recording |
+| `list` | Show all available tools with parameter schemas |
+| `status` | Show Unity Editor connection state |
+| `update` | Self-update the CLI binary |
 
 ### Editor Control
 
@@ -279,6 +292,23 @@ unity-cli profiler status
 unity-cli profiler clear
 ```
 
+### Run Tests
+
+Run EditMode and PlayMode tests via the Unity Test Framework.
+
+```bash
+# Run EditMode tests (default)
+unity-cli test
+
+# Run PlayMode tests
+unity-cli test --mode PlayMode
+
+# Filter by test name (substring match)
+unity-cli test --filter MyTestClass
+```
+
+Requires the Unity Test Framework package. PlayMode tests trigger a domain reload — the CLI polls for results automatically.
+
 ### List Tools
 
 ```bash
@@ -401,7 +431,7 @@ When multiple Unity Editors are open, each registers on a different port (8090, 
 
 ```bash
 # See all running instances
-cat ~/.unity-cli/instances.json
+ls ~/.unity-cli/instances/
 
 # Select by project path
 unity-cli --project MyGame editor play

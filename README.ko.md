@@ -18,7 +18,7 @@
 
 그래서 정반대로 만들었습니다. Unity에 HTTP로 직접 통신하는 바이너리 하나. 서버를 띄울 필요 없이 — Unity 패키지가 자동으로 수신합니다. 설정 파일 없이 — Unity 인스턴스를 알아서 찾습니다. 도구 등록 없이 — 이름으로 바로 호출합니다. 캐싱도, 프로토콜 레이어도, 절차도 없습니다.
 
-CLI 전체가 Go ~800줄(+ help text ~300줄), Unity 커넥터가 C# ~1,700줄입니다. 셸에서 Unity를 다루게 해주는 아주 얇은 레이어 — 그 본분에 충실합니다. 바이너리 설치하고, Unity 패키지 추가하면 끝입니다.
+CLI 전체가 Go ~1,400줄(+ help text ~300줄), Unity 커넥터가 C# ~2,200줄입니다. 셸에서 Unity를 다루게 해주는 아주 얇은 레이어 — 그 본분에 충실합니다. 바이너리 설치하고, Unity 패키지 추가하면 끝입니다.
 
 ## 설치
 
@@ -106,7 +106,7 @@ unity-cli console --filter all
 ──────                                ────────────
 $ unity-cli editor play --wait
     │
-    ├─ ~/.unity-cli/instances.json 읽기
+    ├─ ~/.unity-cli/instances/*.json 스캔
     │  → Unity가 포트 8090에 있음을 확인
     │
     ├─ POST http://127.0.0.1:8090/command
@@ -131,15 +131,28 @@ $ unity-cli editor play --wait
 
 Unity 커넥터의 동작:
 1. Editor 시작 시 `localhost:8090`에 HTTP 서버를 열고
-2. `~/.unity-cli/instances.json`에 자신을 등록하여 CLI가 연결할 수 있게 하고
-3. `~/.unity-cli/status/{port}.json`에 0.5초마다 현재 상태를 기록하고
+2. `~/.unity-cli/instances/`에 프로젝트별 instance 파일을 기록하여 CLI가 연결할 수 있게 하고
+3. 0.5초마다 instance 파일에 현재 상태를 갱신하고 (heartbeat)
 4. 매 요청마다 리플렉션으로 `[UnityCliTool]` 클래스를 탐지하고
 5. 수신된 명령을 메인 스레드의 해당 핸들러로 라우팅하고
 6. 도메인 리로드(스크립트 재컴파일)에서도 유지됩니다
 
-컴파일이나 리로드 직전에 상태(`compiling`, `reloading`)를 status 파일에 기록합니다. 메인 스레드가 멈추면 timestamp 갱신이 중단되고, CLI는 새로운 timestamp가 찍힐 때까지 대기한 후 명령을 전송합니다.
+컴파일이나 리로드 직전에 상태(`compiling`, `reloading`)를 instance 파일에 기록합니다. 메인 스레드가 멈추면 timestamp 갱신이 중단되고, CLI는 새로운 timestamp가 찍힐 때까지 대기한 후 명령을 전송합니다.
 
 ## 내장 명령어
+
+| 명령어 | 설명 |
+|--------|------|
+| `editor` | Unity Editor play/stop/pause/refresh 제어 |
+| `console` | 콘솔 로그 읽기, 필터링, 지우기 |
+| `exec` | Unity 안에서 임의 C# 코드 실행 |
+| `test` | EditMode/PlayMode 테스트 실행 |
+| `menu` | Unity 메뉴 아이템을 경로로 실행 |
+| `reserialize` | Unity 시리얼라이저를 통해 에셋 재직렬화 |
+| `profiler` | 프로파일러 하이어라키 읽기, 녹화 제어 |
+| `list` | 사용 가능한 모든 도구와 파라미터 스키마 표시 |
+| `status` | Unity Editor 연결 상태 확인 |
+| `update` | CLI 바이너리 자동 업데이트 |
 
 ### Editor 제어
 
@@ -279,6 +292,23 @@ unity-cli profiler status
 unity-cli profiler clear
 ```
 
+### 테스트 실행
+
+Unity Test Framework를 통해 EditMode/PlayMode 테스트를 실행합니다.
+
+```bash
+# EditMode 테스트 실행 (기본값)
+unity-cli test
+
+# PlayMode 테스트 실행
+unity-cli test --mode PlayMode
+
+# 테스트 이름으로 필터링 (부분 문자열 매치)
+unity-cli test --filter MyTestClass
+```
+
+Unity Test Framework 패키지가 필요합니다. PlayMode 테스트는 도메인 리로드를 트리거하며, CLI가 자동으로 결과를 폴링합니다.
+
 ### 도구 목록
 
 ```bash
@@ -401,7 +431,7 @@ public static class SpawnEnemy
 
 ```bash
 # 실행 중인 모든 인스턴스 확인
-cat ~/.unity-cli/instances.json
+ls ~/.unity-cli/instances/
 
 # 프로젝트 경로로 선택
 unity-cli --project MyGame editor play
