@@ -91,8 +91,6 @@ func Execute() error {
 	switch category {
 	case "editor":
 		resp, err = editorCmd(subArgs, send, inst.Port)
-	case "list":
-		resp, err = send("list_tools", map[string]interface{}{})
 	case "test":
 		testSend := func(command string, params interface{}) (*client.CommandResponse, error) {
 			return client.Send(inst, command, params, 0)
