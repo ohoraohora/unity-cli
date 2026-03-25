@@ -27,10 +27,10 @@ namespace UnityCliConnector.Tools
 
         public class Parameters
         {
-            [ToolParameter("C# code to execute. Single expressions auto-return their result", Required = true)]
+            [ToolParameter("C# code to execute. Use 'return' for output.", Required = true)]
             public string Code { get; set; }
 
-            [ToolParameter("Additional using directives (e.g. Unity.Entities, Unity.Mathematics)")]
+            [ToolParameter("Additional using directives (comma-separated, e.g. Unity.Entities,Unity.Mathematics)")]
             public string[] Usings { get; set; }
         }
 
@@ -43,33 +43,25 @@ namespace UnityCliConnector.Tools
                 return new ErrorResponse("'code' required");
 
             var usingsToken = p.GetRaw("usings");
-            string[] extraUsings = null;
+            var extraUsings = new List<string>();
             if (usingsToken != null)
             {
                 if (usingsToken.Type == JTokenType.Array)
-                    extraUsings = usingsToken.ToObject<string[]>();
+                    extraUsings.AddRange(usingsToken.ToObject<string[]>());
                 else
-                    extraUsings = usingsToken.ToString().Split(',');
+                    extraUsings.AddRange(usingsToken.ToString().Split(','));
             }
 
-            if (Regex.IsMatch(code, @"\breturn\b") == false)
-            {
-                var trimmed = code.TrimEnd().TrimEnd(';');
-                code = $"return (object)({trimmed});";
-            }
-
-            var source = BuildSource(code, extraUsings);
-            return CompileAndExecute(source);
+            return CompileAndExecute(BuildSource(code, extraUsings));
         }
 
-        private static string BuildSource(string code, string[] extraUsings)
+        private static string BuildSource(string code, List<string> extraUsings)
         {
             var sb = new StringBuilder();
             foreach (var u in DefaultUsings)
                 sb.AppendLine($"using {u};");
-            if (extraUsings != null)
-                foreach (var u in extraUsings)
-                    sb.AppendLine($"using {u};");
+            foreach (var u in extraUsings)
+                sb.AppendLine($"using {u};");
 
             sb.AppendLine();
             sb.AppendLine("public static class __CliDynamic {");
@@ -96,7 +88,7 @@ namespace UnityCliConnector.Tools
                 File.WriteAllText(srcFile, source, utf8);
 
                 var rsp = new StringBuilder();
-                rsp.AppendLine($"-target:library");
+                rsp.AppendLine("-target:library");
                 rsp.AppendLine($"-out:\"{outFile}\"");
                 rsp.AppendLine("-nologo");
                 rsp.AppendLine("-nowarn:0105,1701,1702");

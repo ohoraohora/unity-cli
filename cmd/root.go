@@ -265,7 +265,7 @@ Console:
   console --clear               Clear console
 
 Execute C#:
-  exec "<code>"                 Run C# code in Unity (single expression auto-returns)
+  exec "<code>"                 Run C# code in Unity (return required for output)
   exec "<code>" --usings x,y    Add extra using directives
 
   Examples:
@@ -384,22 +384,24 @@ Examples:
 Execute C# code inside Unity Editor. Full access to UnityEngine,
 UnityEditor, and all loaded assemblies.
 
-Single expressions auto-return their result.
-Multi-statement code needs an explicit 'return' statement.
+Use 'return' to get output. Add --usings for types outside default namespaces.
 
 Options:
   --usings <ns1,ns2>   Add extra using directives
 
+Default usings: System, System.Collections.Generic, System.Linq,
+                System.Reflection, UnityEngine, UnityEditor
+
 Examples:
-  unity-cli exec "Time.time"
-  unity-cli exec "Application.dataPath"
-  unity-cli exec "EditorSceneManager.GetActiveScene().name" --usings UnityEditor.SceneManagement
-  unity-cli exec "var go = new GameObject(\"Test\"); return go.name;"
-  unity-cli exec "World.All.Count" --usings Unity.Entities
+  unity-cli exec "return 1+1;"
+  unity-cli exec "return Application.dataPath;"
+  unity-cli exec "return EditorSceneManager.GetActiveScene().name;" --usings UnityEditor.SceneManagement
+  unity-cli exec "Debug.Log(\"hello\"); return null;"
+  unity-cli exec "return World.All.Count;" --usings Unity.Entities
 
 Notes:
+  - Use 'return' for output, 'return null;' for void operations
   - Strings inside code need escaped quotes: \"text\"
-  - Compilation errors are returned in the response message
 `)
 	case "menu":
 		fmt.Print(`Usage: unity-cli menu "<path>"

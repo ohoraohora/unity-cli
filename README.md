@@ -93,7 +93,7 @@ unity-cli status
 unity-cli editor play --wait
 
 # Run C# code inside Unity
-unity-cli exec "Application.dataPath"
+unity-cli exec "return Application.dataPath;"
 
 # Read console logs
 unity-cli console --filter error,warning,log
@@ -200,27 +200,15 @@ unity-cli console --clear
 
 Run arbitrary C# code inside the Unity Editor at runtime. This is the most powerful command — it gives you full access to UnityEngine, UnityEditor, ECS, and every loaded assembly. No need to write a custom tool for one-off queries or mutations.
 
-Single expressions auto-return their result. Multi-statement code needs an explicit `return`.
+Use `return` to get output. Add `--usings` for types outside default namespaces (`System`, `System.Collections.Generic`, `System.Linq`, `System.Reflection`, `UnityEngine`, `UnityEditor`).
 
 ```bash
-# Simple expressions
-unity-cli exec "Time.time"
-unity-cli exec "Application.dataPath"
-unity-cli exec "EditorSceneManager.GetActiveScene().name" --usings UnityEditor.SceneManagement
-
-# Query game objects
-unity-cli exec "GameObject.FindObjectsOfType<Camera>().Length"
-unity-cli exec "Selection.activeGameObject?.name ?? \"nothing selected\""
-
-# Multi-statement (explicit return)
+unity-cli exec "return Application.dataPath;"
+unity-cli exec "return EditorSceneManager.GetActiveScene().name;" --usings UnityEditor.SceneManagement
+unity-cli exec "return World.All.Count;" --usings Unity.Entities
+unity-cli exec "Debug.Log(\"hello\"); return null;"
 unity-cli exec "var go = new GameObject(\"Marker\"); go.tag = \"EditorOnly\"; return go.name;"
-
-# ECS world inspection with extra usings
-unity-cli exec "World.All.Count" --usings Unity.Entities
-unity-cli exec "var sb = new System.Text.StringBuilder(); foreach(var w in World.All) sb.AppendLine(w.Name); return sb.ToString();" --usings Unity.Entities
-
-# Modify project settings at runtime
-unity-cli exec "PlayerSettings.bundleVersion = \"1.2.3\"; return PlayerSettings.bundleVersion;"
+unity-cli exec "return PlayerSettings.bundleVersion;"
 ```
 
 Because `exec` compiles and runs real C#, it can do anything a custom tool can — inspect ECS entities, modify assets, call internal APIs, run editor utilities. For AI agents, this means **zero-friction access to Unity's entire runtime** without writing a single line of tool code.

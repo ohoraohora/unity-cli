@@ -93,7 +93,7 @@ unity-cli status
 unity-cli editor play --wait
 
 # Unity 안에서 C# 코드 실행
-unity-cli exec "Application.dataPath"
+unity-cli exec "return Application.dataPath;"
 
 # 콘솔 로그 읽기
 unity-cli console --filter error,warning,log
@@ -200,27 +200,15 @@ unity-cli console --clear
 
 가장 강력한 명령어입니다. Unity Editor 런타임에서 임의의 C# 코드를 실행합니다. UnityEngine, UnityEditor, ECS 및 로드된 모든 어셈블리에 접근 가능합니다. 일회성 조회나 수정을 위해 커스텀 도구를 만들 필요가 없습니다.
 
-단순 표현식은 결과를 자동 반환합니다. 여러 문장일 때는 명시적 `return`이 필요합니다.
+`return`으로 결과를 받습니다. 기본 namespace(`System`, `System.Collections.Generic`, `System.Linq`, `System.Reflection`, `UnityEngine`, `UnityEditor`) 외의 타입은 `--usings`로 추가합니다.
 
 ```bash
-# 단순 표현식
-unity-cli exec "Time.time"
-unity-cli exec "Application.dataPath"
-unity-cli exec "EditorSceneManager.GetActiveScene().name" --usings UnityEditor.SceneManagement
-
-# 게임 오브젝트 조회
-unity-cli exec "GameObject.FindObjectsOfType<Camera>().Length"
-unity-cli exec "Selection.activeGameObject?.name ?? \"nothing selected\""
-
-# 여러 문장 (명시적 return)
+unity-cli exec "return Application.dataPath;"
+unity-cli exec "return EditorSceneManager.GetActiveScene().name;" --usings UnityEditor.SceneManagement
+unity-cli exec "return World.All.Count;" --usings Unity.Entities
+unity-cli exec "Debug.Log(\"hello\"); return null;"
 unity-cli exec "var go = new GameObject(\"Marker\"); go.tag = \"EditorOnly\"; return go.name;"
-
-# ECS 월드 조사 (추가 using 포함)
-unity-cli exec "World.All.Count" --usings Unity.Entities
-unity-cli exec "var sb = new System.Text.StringBuilder(); foreach(var w in World.All) sb.AppendLine(w.Name); return sb.ToString();" --usings Unity.Entities
-
-# 런타임에서 프로젝트 설정 수정
-unity-cli exec "PlayerSettings.bundleVersion = \"1.2.3\"; return PlayerSettings.bundleVersion;"
+unity-cli exec "return PlayerSettings.bundleVersion;"
 ```
 
 `exec`는 실제 C#을 컴파일하고 실행하므로, 커스텀 도구가 할 수 있는 모든 것을 할 수 있습니다 — ECS 엔티티 조사, 에셋 수정, 내부 API 호출, 에디터 유틸리티 실행. AI 에이전트에게 이것은 **도구 코드를 한 줄도 작성하지 않고 Unity 전체 런타임에 즉시 접근**할 수 있다는 의미입니다.
